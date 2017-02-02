@@ -11,28 +11,20 @@ public class KittenORMExample: Application {
 final class User : Model {
     /// The database identifier
     public var id: Any?
+    public var firstName: String
+    public var lastName: String
     
-    init() {}
-}
-
-
-
-// TODO: Generate this
-
-extension User : ConcreteModel {
-    public func serialize() -> Document {
-        return [
-            "_id": id as? ValueConvertible
-        ]
-    }
-
-    typealias T = KittenORMExample.DB.T
-    
-    static var table = KittenORMExample.database.getTable(named: "users")
-    
-    convenience init(from source: Document) throws {
-        self.init()
-        
-        self.id = source.getORMIdentifier()
+    init(firstName: String, lastName: String) {
+        self.firstName = firstName
+        self.lastName = lastName
     }
 }
+
+
+var me = User(firstName: "Joannis", lastName: "Orlandos")
+try me.save()
+
+let me2 = try User.findOne(byId: me.getIdentifier())
+
+print(me2?.firstName)
+print(me2?.lastName)

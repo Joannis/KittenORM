@@ -24,6 +24,10 @@ extension Document: DatabaseEntity {
 }
 
 extension MongoKitten.Collection : Table {
+    public func delete(byId identifier: ValueConvertible) throws {
+        try self.remove(matching: "_id" == identifier)
+    }
+
     public func find(matching query: Query?, sorted by: KittenORM.Sort?) throws -> AnyIterator<Document> {
         let mongoSort: MongoKitten.Sort?
         
@@ -66,7 +70,7 @@ extension MongoKitten.Collection : Table {
         try self.update(matching: "_id" == identifier, to: entity)
     }
     
-    public static func generateId() -> ValueConvertible {
+    public static func generateIdentifier() -> ValueConvertible {
         return ObjectId()
     }
 
@@ -83,5 +87,49 @@ extension MongoKitten.Database : KittenORM.Database {
     
     public func getTable(named collection: String) -> MongoKitten.Collection {
         return self[collection]
+    }
+}
+
+extension ConcreteModel where T == MongoDB.T {
+    public static func findOne(matching query: T.Query?) throws -> Self? {
+        guard let result = try table.findOne(matching: query) else {
+            return nil
+        }
+        
+        return try Self(from: result)
+    }
+    
+    public static func findOne(byId identifier: ValueConvertible) throws -> Self? {
+        guard let result = try table.findOne(matching: "_id" == identifier) else {
+            return nil
+        }
+        
+        return try Self(from: result)
+    }
+    
+    public static func find(matching query: T.Query?, sorted by: KittenORM.Sort?) throws -> AnyIterator<Self> {
+        let mongoSort: MongoKitten.Sort?
+        
+        if let order = by?.order {
+            var doc = Document()
+            
+            for (key, val) in order {
+                if case .ascending = val {
+                    doc[key] = Int32(1)
+                } else {
+                    doc[key] = Int32(-1)
+                }
+            }
+            mongoSort = MongoKitten.Sort(doc)
+            
+        } else {
+            mongoSort = nil
+        }
+        
+        let base = try table.find(matching: query, sortedBy: mongoSort)
+        
+        return Cursor(base: base, transform: { (doc) -> (Self?) in
+            return try? Self(from: doc)
+        }).makeIterator()
     }
 }

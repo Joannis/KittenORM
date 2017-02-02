@@ -8,6 +8,10 @@ extension String: FieldNameRepresentable {
     }
 }
 
+public enum ORMError: Error {
+    case missingKey(String)
+}
+
 public protocol Application {
     associatedtype DB: Database
     static var database: DB! { get }
@@ -58,7 +62,9 @@ public protocol Table {
     func update(matching query: Query?, to entity: Entity) throws
     func update(matchingIdentifier identifier: Entity.Identifier, to entity: Entity) throws
     
-    static func generateId() -> Entity.Identifier
+    func delete(byId identifier: Entity.Identifier) throws
+    
+    static func generateIdentifier() -> Entity.Identifier
 }
 
 public protocol Database {
@@ -75,6 +81,12 @@ public protocol ConcreteSerializable {
     
     init(from source: T.Entity) throws
     func serialize() -> T.Entity
+    
+    mutating func getIdentifier() -> T.Entity.Identifier
+    
+    static func find(matching query: T.Query?, sorted by: Sort?) throws -> AnyIterator<Self>
+    static func findOne(matching query: T.Query?) throws -> Self?
+    static func findOne(byId identifier: T.Entity.Identifier) throws -> Self?
 }
 
 public protocol Model {
@@ -82,18 +94,39 @@ public protocol Model {
     var id: Any? { get set }
 }
 
+public protocol Embeddable {}
+
 public protocol ConcreteModel : Model, ConcreteSerializable {
     /// The table/collection this model resides in
     static var table: T { get }
 }
 
+public protocol ConcreteEmbeddable : Embeddable, ConcreteSerializable {
+    /// The table/collection this model resides in
+    static var table: T { get }
+}
+
 extension ConcreteModel {
+    public mutating func getIdentifier() -> T.Entity.Identifier {
+        if let identifier = self.id as? T.Entity.Identifier {
+            return identifier
+        } else {
+            let identifier = T.generateIdentifier()
+            self.id = identifier
+            return identifier
+        }
+    }
+    
     public mutating func save() throws {
         if let id = id as? Self.T.Entity.Identifier {
             try Self.table.update(matchingIdentifier: id, to: self.serialize())
         } else {
-            id = Self.T.generateId()
+            id = Self.T.generateIdentifier()
             try Self.table.store(self.serialize())
         }
+    }
+    
+    public func destroy() throws {
+        
     }
 }
