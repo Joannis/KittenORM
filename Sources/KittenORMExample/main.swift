@@ -28,3 +28,10 @@ let me2 = try User.findOne(byId: me.getIdentifier())
 
 print(me2?.firstName)
 print(me2?.lastName)
+
+try me.destroy()
+
+let me3 = try User.findOne(byId: me.getIdentifier())
+
+print(me3?.firstName)
+print(me3?.lastName)

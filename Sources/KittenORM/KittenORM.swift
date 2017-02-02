@@ -94,6 +94,10 @@ public protocol Model {
     var id: Any? { get set }
 }
 
+public protocol SchemalessModel : ConcreteModel {
+    var extraFields: T.Entity? { get }
+}
+
 public protocol Embeddable {}
 
 public protocol ConcreteModel : Model, ConcreteSerializable {
@@ -101,10 +105,7 @@ public protocol ConcreteModel : Model, ConcreteSerializable {
     static var table: T { get }
 }
 
-public protocol ConcreteEmbeddable : Embeddable, ConcreteSerializable {
-    /// The table/collection this model resides in
-    static var table: T { get }
-}
+public protocol ConcreteEmbeddable : Embeddable, ConcreteSerializable {}
 
 extension ConcreteModel {
     public mutating func getIdentifier() -> T.Entity.Identifier {
@@ -127,6 +128,8 @@ extension ConcreteModel {
     }
     
     public func destroy() throws {
-        
+        if let id = id as? Self.T.Entity.Identifier {
+            try Self.table.delete(byId: id)
+        }
     }
 }
