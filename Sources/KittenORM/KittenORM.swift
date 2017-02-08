@@ -1,13 +1,18 @@
+/// Anything that represents a FieldName
+///
+/// Either a String or a Type-Safe querylanguage object
 public protocol FieldNameRepresentable {
     var fieldName: String { get }
 }
 
+/// Allows a String to represent a field name
 extension String: FieldNameRepresentable {
     public var fieldName: String {
         return self
     }
 }
 
+/// Generic errors you can throw in the ORM when (de)serializing
 public enum ORMError: Error {
     case missingKey(String)
 }
@@ -38,15 +43,27 @@ public struct Sort: ExpressibleByDictionaryLiteral {
     }
 }
 
-public protocol DatabaseEntity {
-    associatedtype ORMValue
+public protocol Serializable {}
+
+public protocol SerializableObject {
+    associatedtype SupportedValue = Serializable.Type
+    
+    init(dictionary: [String: SupportedValue])
+    
+    func getValue(forKey key: String) -> SupportedValue?
+    mutating func setValue(to newValue: SupportedValue?, forKey key: String)
+    
+    func getKeys() -> [String]
+    func getValues() -> [SupportedValue]
+    func getKeyValuePairs() -> [String: SupportedValue]
+}
+
+public protocol DatabaseEntity: SerializableObject {
     associatedtype Identifier
     
     static var defaultIdentifierField: String { get }
     
-    func getORMIdentifier() -> Identifier?
-    func getORMValue(forKey key: String) -> ORMValue?
-    mutating func setORMValue(to value: ORMValue?, forKey key: String)
+    func getIdentifier() -> Identifier?
 }
 
 public protocol Table {
@@ -63,14 +80,23 @@ public protocol Table {
     func update(matchingIdentifier identifier: Entity.Identifier, to entity: Entity) throws
     
     func delete(byId identifier: Entity.Identifier) throws
+    func delete(_ entity: Entity) throws
     
     static func generateIdentifier() -> Entity.Identifier
 }
 
+extension Table {
+    public func delete(_ entity: Entity) throws {
+        guard let id = entity.getIdentifier() else {
+            throw ORMError.missingKey(Entity.defaultIdentifierField)
+        }
+        
+        return try self.delete(byId: id)
+    }
+}
+
 public protocol Database {
     associatedtype T: Table
-    
-    init(_ connectionString: String) throws
     
     func getTable(named table: String) -> T
 }
@@ -87,6 +113,26 @@ public protocol ConcreteSerializable {
     static func find(matching query: T.Query?, sorted by: Sort?) throws -> AnyIterator<Self>
     static func findOne(matching query: T.Query?) throws -> Self?
     static func findOne(byId identifier: T.Entity.Identifier) throws -> Self?
+}
+
+extension ConcreteSerializable {
+    public func convert<S: SerializableObject>(to type: S.Type) -> (converted: S, remainder: Self.T.Entity) {
+        var s = S(dictionary: [:])
+        
+        var remainder = T.Entity(dictionary: [:])
+        
+        for (key, value) in self.serialize().getKeyValuePairs() {
+            if let value = value as? S.SupportedValue {
+                s.setValue(to: value, forKey: key)
+//            } else if let value = T.Entity.self.convert(value, to: S.self) {
+//                s.setValue(to: value, forKey: key)
+            } else {
+                remainder.setValue(to: value, forKey: key)
+            }
+        }
+        
+        return (s, remainder)
+    }
 }
 
 public protocol Model {

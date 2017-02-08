@@ -1,6 +1,5 @@
 import KittenORM
 import MongoKittenORM
-import MongoKitten
 
 extension User : ConcreteModel {
     public func serialize() -> Document {
@@ -26,6 +25,6 @@ extension User : ConcreteModel {
         
         self.init(firstName: firstName, lastName: lastName)
         
-        self.id = source.getORMIdentifier()
+        self.id = source.getIdentifier()
     }
 }

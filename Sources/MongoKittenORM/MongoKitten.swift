@@ -1,30 +1,312 @@
+import Foundation
 @_exported import KittenORM
 @_exported import BSON
-import MongoKitten
+@_exported import MongoKitten
 
 public typealias MongoDB = MongoKitten.Database
 
+public protocol MongoValue: Serializable, ValueConvertible {
+    func converted<ST : Serializable>() -> ST?
+}
+
+extension ValueConvertible {
+    public func makeMongoValue() -> MongoValue? {
+        return self as? MongoValue
+    }
+}
+
+extension ObjectId: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        } else if String.self is S {
+            return self.hexString as? S
+        }
+        
+        return nil
+    }
+}
+
+extension String: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Int.self is S, let num = Int(self) as? S {
+            return num
+        }
+        
+        if Int32.self is S, let num = Int32(self) as? S {
+            return num
+        }
+        
+        if Int64.self is S, let num = Int64(self) as? S {
+            return num
+        }
+        
+        if Double.self is S, let num = Double(self) as? S {
+            return num
+        }
+        
+        return nil
+    }
+}
+
+extension Int: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Int32.self is S, self < Int(Int32.max), self > Int(Int32.min), let num = Int32(self) as? S {
+            return num
+        }
+        
+        if Int64.self is S, Int64(self) < Int64.max, Int64(self) > Int64.min, let num = Int64(self) as? S {
+            return num
+        }
+        
+        if String.self is S, let string = self.description as? S {
+            return string
+        }
+        
+        if Bool.self is S, let bool = (self > 0) as? S {
+            return bool
+        }
+        
+        return nil
+    }
+}
+
+extension Int32: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Int.self is S, Int(self) < Int(Int.max), Int(self) > Int.min, let num = Int(self) as? S {
+            return num
+        }
+        
+        if Int64.self is S, Int64(self) < Int64.max, Int64(self) > Int64.min, let num = Int64(self) as? S {
+            return num
+        }
+        
+        if String.self is S, let string = self.description as? S {
+            return string
+        }
+        
+        if Bool.self is S, let bool = (self > 0) as? S {
+            return bool
+        }
+        
+        return nil
+    }
+}
+
+extension Int64: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Int.self is S, self < Int64(Int.max), self > Int64(Int.min), let num = Int(self) as? S {
+            return num
+        }
+        
+        if Int32.self is S, self < Int64(Int32.max), self > Int64(Int32.min), let num = Int32(self) as? S {
+            return num
+        }
+        
+        if String.self is S, let string = self.description as? S {
+            return string
+        }
+        
+        if Bool.self is S, let bool = (self > 0) as? S {
+            return bool
+        }
+        
+        return nil
+    }
+}
+
+extension Double: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Int.self is S, let num = Int(self) as? S {
+            return num
+        }
+        
+        if Int32.self is S, let num = Int32(self) as? S {
+            return num
+        }
+        
+        if Int64.self is S, let num = Int64(self) as? S {
+            return num
+        }
+        
+        if String.self is S, let string = self.description as? S {
+            return string
+        }
+        
+        if Bool.self is S, let bool = (self > 0) as? S {
+            return bool
+        }
+        
+        return nil
+    }
+}
+
+extension Data: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Binary.self is S {
+            return Binary(data: self, withSubtype: .generic) as? S
+        }
+        
+        return nil
+    }
+}
+
+extension Document: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        return self as? S
+    }
+}
+
+extension Bool: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Int.self is S, let num = (self ? Int(1) : Int(0)) as? S {
+            return num
+        }
+        
+        if Int32.self is S, let num = (self ? Int32(1) : Int32(0)) as? S {
+            return num
+        }
+        
+        if Int64.self is S, let num = (self ? Int64(1) : Int64(0)) as? S {
+            return num
+        }
+        
+        if String.self is S {
+            let string = (self ? "true" : "false")
+            return string as? S
+        }
+        
+        return nil
+    }
+}
+
+extension Binary: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Data.self is S {
+            return self.data as? S
+        }
+        
+        return nil
+    }
+}
+
+extension RegularExpression: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        return self as? S
+    }
+}
+
+extension Date: MongoValue {
+    public func converted<S : Serializable>() -> S? {
+        if self is S {
+            return self as? S
+        }
+        
+        if Int.self is S, let num = Int(self.timeIntervalSince1970) as? S {
+            return num
+        }
+        
+        if Int32.self is S, let num = Int32(self.timeIntervalSince1970) as? S {
+            return num
+        }
+        
+        if Int64.self is S, let num = Int64(self.timeIntervalSince1970) as? S {
+            return num
+        }
+        
+        if Double.self is S, let num = Double(self.timeIntervalSince1970) as? S {
+            return num
+        }
+        
+        if String.self is S, let string = self.timeIntervalSince1970.description as? S {
+            return string
+        }
+        
+        return nil
+    }
+}
+
 extension Document: DatabaseEntity {
-    public typealias Identifier = ValueConvertible
-    public typealias ORMValue = ValueConvertible
+    public typealias Identifier = MongoValue
+    public typealias SupportedValue = MongoValue
     
     public static let defaultIdentifierField: String = "_id"
     
-    public func getORMIdentifier() -> ValueConvertible? {
-        return self[raw: "_id"]
+    public func getIdentifier() -> MongoValue? {
+        return self[raw: "_id"]?.makeMongoValue()
     }
     
-    public func getORMValue(forKey key: String) -> ValueConvertible? {
-        return self[raw: key]
+    public func getValue(forKey key: String) -> MongoValue? {
+        return self[raw: key]?.makeMongoValue()
     }
     
-    public mutating func setORMValue(to value: ValueConvertible?, forKey key: String) {
-        self[raw: key] = value
+    public mutating func setValue(to newValue: MongoValue?, forKey key: String) {
+        self[raw: key] = newValue
+    }
+    
+    public func getKeys() -> [String] {
+        return keys
+    }
+    
+    public func getValues() -> [MongoValue] {
+        return self.arrayValue.flatMap {
+            $0.makeMongoValue()
+        }
+    }
+    
+    public func getKeyValuePairs() -> [String : MongoValue] {
+        var pairs = [String: MongoValue]()
+        
+        for (key, value) in self {
+            if let value = value.makeMongoValue() {
+                pairs[key] = value
+            }
+        }
+        
+        return pairs
+    }
+    
+    public init(dictionary: [String: MongoValue]) {
+        self.init(dictionaryElements: dictionary.map { pair in
+            return (pair.key as StringVariant, pair.value)
+        })
     }
 }
 
 extension MongoKitten.Collection : Table {
-    public func delete(byId identifier: ValueConvertible) throws {
+    public func delete(byId identifier: MongoValue) throws {
         try self.remove(matching: "_id" == identifier)
     }
 
@@ -58,7 +340,7 @@ extension MongoKitten.Collection : Table {
         return try self.findOne(matching: query, collation: nil)
     }
     
-    public func findOne(byId identifier: ValueConvertible) throws -> Document? {
+    public func findOne(byId identifier: MongoValue) throws -> Document? {
         return try self.findOne(matching: "_id" == identifier)
     }
     
@@ -66,11 +348,11 @@ extension MongoKitten.Collection : Table {
         try self.update(matching: query ?? [:], to: entity, upserting: false, multiple: true)
     }
     
-    public func update(matchingIdentifier identifier: ValueConvertible, to entity: Document) throws {
+    public func update(matchingIdentifier identifier: MongoValue, to entity: Document) throws {
         try self.update(matching: "_id" == identifier, to: entity)
     }
     
-    public static func generateIdentifier() -> ValueConvertible {
+    public static func generateIdentifier() -> MongoValue {
         return ObjectId()
     }
 
@@ -81,16 +363,16 @@ extension MongoKitten.Collection : Table {
 extension MongoKitten.Database : KittenORM.Database {
     public typealias T = MongoKitten.Collection
     
-    public convenience init(_ connectionString: String) throws {
-        try self.init(mongoURL: connectionString)
-    }
-    
     public func getTable(named collection: String) -> MongoKitten.Collection {
         return self[collection]
     }
 }
 
 extension ConcreteModel where T == MongoDB.T {
+    public static var collection: T {
+        return table
+    }
+    
     public static func findOne(matching query: T.Query?) throws -> Self? {
         guard let result = try table.findOne(matching: query) else {
             return nil
@@ -99,7 +381,7 @@ extension ConcreteModel where T == MongoDB.T {
         return try Self(from: result)
     }
     
-    public static func findOne(byId identifier: ValueConvertible) throws -> Self? {
+    public static func findOne(byId identifier: MongoValue) throws -> Self? {
         guard let result = try table.findOne(matching: "_id" == identifier) else {
             return nil
         }
