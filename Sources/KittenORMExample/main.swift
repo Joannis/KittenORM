@@ -36,4 +36,4 @@ let me3 = try User.findOne(byId: me.getIdentifier())
 print(me3?.firstName as Any)
 print(me3?.lastName as Any)
 
-//print(me2?.converted(to: JSONObject.self))
+print(me2?.convert(to: JSONObject.self))
