@@ -43,10 +43,8 @@ public struct Sort: ExpressibleByDictionaryLiteral {
     }
 }
 
-public protocol Serializable {}
-
 public protocol SerializableObject {
-    associatedtype SupportedValue = Serializable.Type
+    associatedtype SupportedValue
     
     init(dictionary: [String: SupportedValue])
     
@@ -58,8 +56,10 @@ public protocol SerializableObject {
     func getKeyValuePairs() -> [String: SupportedValue]
 }
 
+public protocol IdentifierType : Hashable, Equatable { }
+
 public protocol DatabaseEntity: SerializableObject {
-    associatedtype Identifier
+    associatedtype Identifier: IdentifierType
     
     static var defaultIdentifierField: String { get }
     
@@ -135,25 +135,31 @@ extension ConcreteSerializable {
     }
 }
 
+/// A database model
 public protocol Model {
     /// The database identifier
     var id: Any? { get set }
 }
 
+/// A database mdoel without schema
 public protocol SchemalessModel : ConcreteModel {
     var extraFields: T.Entity? { get }
 }
 
+/// An embeddable object
 public protocol Embeddable {}
 
+/// A database model that has a specified table/collection with specified (de-)serialization
 public protocol ConcreteModel : Model, ConcreteSerializable {
     /// The table/collection this model resides in
     static var table: T { get }
 }
 
+/// An embdeddabe with specified (de-)serialization
 public protocol ConcreteEmbeddable : Embeddable, ConcreteSerializable {}
 
 extension ConcreteModel {
+    /// The model's identifier
     public mutating func getIdentifier() -> T.Entity.Identifier {
         if let identifier = self.id as? T.Entity.Identifier {
             return identifier
@@ -164,6 +170,7 @@ extension ConcreteModel {
         }
     }
     
+    /// Saves the entity to the database
     public mutating func save() throws {
         if let id = id as? Self.T.Entity.Identifier {
             try Self.table.update(matchingIdentifier: id, to: self.serialize())
@@ -173,6 +180,7 @@ extension ConcreteModel {
         }
     }
     
+    /// Destroys the entity
     public func destroy() throws {
         if let id = id as? Self.T.Entity.Identifier {
             try Self.table.delete(byId: id)
